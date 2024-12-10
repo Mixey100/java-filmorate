@@ -24,9 +24,9 @@ public class UserController {
     }
 
     @PostMapping
-    public User createUser(User newUser) {
+    public User createUser(@RequestBody User newUser) {
         check(newUser);
-        if (newUser.getName() == null || newUser.getName().isBlank()) {
+        if (newUser.getName() == null || newUser.getName().isEmpty()) {
             newUser.setName(newUser.getLogin());
         }
         newUser.setId(getNextId());
@@ -36,7 +36,7 @@ public class UserController {
     }
 
     @PutMapping
-    public User updateUser(User updUser) {
+    public User updateUser(@RequestBody User updUser) {
         if (updUser.getId() == null) {
             log.error("Отсутствует id пользователя");
             throw new ValidationException("Должен быть указан id пользователя");
@@ -44,7 +44,7 @@ public class UserController {
         if (users.containsKey(updUser.getId())) {
             check(updUser);
             User user = users.get(updUser.getId());
-            if (updUser.getName() == null || updUser.getName().isBlank()) {
+            if (updUser.getName().isBlank()) {
                 user.setName(updUser.getLogin());
             } else {
                 user.setName(updUser.getName());
@@ -60,7 +60,7 @@ public class UserController {
     }
 
     private void check(User user) {
-        if (user.getEmail() == null || user.getEmail().isBlank()) {
+        if (user.getEmail().isBlank()) {
             log.error("Имейл не введен");
             throw new ValidationException("Должен быть указан имейл");
         }
@@ -68,7 +68,7 @@ public class UserController {
             log.error("Имейл не содержит символ @");
             throw new ValidationException("В имейле должен содержаться символ @");
         }
-        if (user.getLogin() == null || user.getLogin().isBlank() || user.getLogin().contains(" ")) {
+        if (user.getLogin().isBlank() || user.getLogin().contains(" ")) {
             log.error("Логин пустой или содержит пробелы");
             throw new ValidationException("Логин не должен быть пустым или содержать пробелы");
         }

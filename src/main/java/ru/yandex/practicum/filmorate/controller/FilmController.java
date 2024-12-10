@@ -53,11 +53,11 @@ public class FilmController {
     }
 
     private void check(Film film) {
-        if (film.getName() == null || film.getName().isBlank()) {
+        if (film.getName().isBlank()) {
             log.error("Отсутствует название фильма");
             throw new ValidationException("Должно быть указано название фильма");
         }
-        if (film.getDescription() == null || film.getDescription().length() > 200) {
+        if (film.getDescription().isBlank() || film.getDescription().length() > 200) {
             log.error("Слишком длинное описание фильма");
             throw new ValidationException("Слишком длинное описание фильма");
         }
