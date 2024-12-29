@@ -7,6 +7,7 @@ import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -31,49 +32,64 @@ public class UserService {
     }
 
     public User createUser(User newUser) {
-        return storage.createUser(newUser);
+        check(newUser);
+        if (newUser.getName() == null || newUser.getName().isEmpty()) {
+            newUser.setName(newUser.getLogin());
+        }
+        storage.createUser(newUser);
+        log.info("Пользователь {} добавлен", newUser.getName());
+        return newUser;
     }
 
     public User updateUser(User updUser) {
-        return storage.updateUser(updUser);
+        if (updUser.getId() == null) {
+            throw new ValidationException("Должен быть указан id пользователя");
+        }
+        check(updUser);
+        User user = storage.updateUser(updUser);
+        if (user != null) {
+            if (updUser.getName().isBlank()) {
+                user.setName(updUser.getLogin());
+            } else {
+                user.setName(updUser.getName());
+            }
+            log.info("Успешное обновление пользователя {}", user.getName());
+            return user;
+        }
+        throw new NotFoundException("Пользователь с id " + updUser.getId() + " не найден");
     }
+
 
     public List<User> getFriends(long id) {
         Optional<User> optUser = getUser(id);
-        if (optUser.isPresent()) {
-            Set<Long> friendsId = optUser.get().getFriends();
-            return getUsers()
-                    .stream()
-                    .filter(user -> friendsId.contains(user.getId()))
-                    .toList();
-        } else {
-            logUserError(id);
-            throw new NotFoundException("Пользователь с id: " + id + " не найден");
-        }
+
+        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + id + " не найден"));
+
+        Set<Long> friendsId = user.getFriends();
+        return getUsers()
+                .stream()
+                .filter(currentUser -> friendsId.contains(currentUser.getId()))
+                .toList();
     }
 
     public List<User> getCommonFriends(long userId, long friendId) {
         Optional<User> optUser = getUser(userId);
         Optional<User> optFriend = getUser(friendId);
-        if (optUser.isEmpty()) {
-            logUserError(userId);
-            throw new NotFoundException("Пользователь с id: " + userId + " не найден");
-        } else if (optFriend.isEmpty()) {
-            logUserError(friendId);
-            throw new NotFoundException("Пользователь с id: " + friendId + " не найден");
-        } else {
-            Set<Long> userFriendsId = optUser.get().getFriends();
-            Set<Long> friendFriendsId = optFriend.get().getFriends();
-            List<Long> commonId = userFriendsId
-                    .stream()
-                    .filter(friendFriendsId::contains)
-                    .toList();
 
-            return getUsers()
-                    .stream()
-                    .filter(user -> commonId.contains(user.getId()))
-                    .toList();
-        }
+        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
+        User friend = optFriend.orElseThrow(() -> new NotFoundException("Пользователь с id: " + friendId + " не найден"));
+
+        Set<Long> userFriendsId = user.getFriends();
+        Set<Long> friendFriendsId = friend.getFriends();
+        List<Long> commonId = userFriendsId
+                .stream()
+                .filter(friendFriendsId::contains)
+                .toList();
+
+        return getUsers()
+                .stream()
+                .filter(currentUser -> commonId.contains(currentUser.getId()))
+                .toList();
     }
 
     public User addFriend(long userId, long friendId) {
@@ -83,20 +99,14 @@ public class UserService {
         }
         Optional<User> optUser = getUser(userId);
         Optional<User> optFriend = getUser(friendId);
-        if (optUser.isEmpty()) {
-            logUserError(userId);
-            throw new NotFoundException("Пользователь с id: " + userId + " не найден");
-        } else if (optFriend.isEmpty()) {
-            logUserError(friendId);
-            throw new NotFoundException("Пользователь с id: " + friendId + " не найден");
-        } else {
-            User user = optUser.get();
-            User friend = optFriend.get();
-            user.getFriends().add(friendId);
-            friend.getFriends().add(userId);
-            log.info("Пользователь с id: {} добавил в друзья пользователя с id: {}", userId, friendId);
-            return user;
-        }
+
+        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
+        User friend = optFriend.orElseThrow(() -> new NotFoundException("Пользователь с id: " + friendId + " не найден"));
+
+        user.getFriends().add(friendId);
+        friend.getFriends().add(userId);
+        log.info("Пользователь с id: {} добавил в друзья пользователя с id: {}", userId, friendId);
+        return user;
     }
 
     public User deleteFriend(long userId, long friendId) {
@@ -106,23 +116,32 @@ public class UserService {
         }
         Optional<User> optUser = getUser(userId);
         Optional<User> optFriend = getUser(friendId);
-        if (optUser.isEmpty()) {
-            logUserError(userId);
-            throw new NotFoundException("Пользователь с id: " + userId + " не найден");
-        } else if (optFriend.isEmpty()) {
-            logUserError(friendId);
-            throw new NotFoundException("Пользователь с id: " + friendId + " не найден");
-        } else {
-            User user = optUser.get();
-            User friend = optFriend.get();
-            user.getFriends().remove(friendId);
-            friend.getFriends().remove(userId);
-            log.info("Пользователь с id: {} удалил из друзей пользователя с id: {}", userId, friendId);
-            return user;
-        }
+
+        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
+        User friend = optFriend.orElseThrow(() -> new NotFoundException("Пользователь с id: " + friendId + " не найден"));
+
+        user.getFriends().remove(friendId);
+        friend.getFriends().remove(userId);
+        log.info("Пользователь с id: {} удалил из друзей пользователя с id: {}", userId, friendId);
+        return user;
     }
 
-    void logUserError(long id) {
-        log.error("Пользователь с id: {} не найден", id);
+    private void check(User user) {
+        if (user.getEmail().isBlank()) {
+            log.error("Имейл не введен");
+            throw new ValidationException("Должен быть указан имейл");
+        }
+        if (!user.getEmail().contains("@")) {
+            log.error("Имейл не содержит символ @");
+            throw new ValidationException("В имейле должен содержаться символ @");
+        }
+        if (user.getLogin().isBlank() || user.getLogin().contains(" ")) {
+            log.error("Логин пустой или содержит пробелы");
+            throw new ValidationException("Логин не должен быть пустым или содержать пробелы");
+        }
+        if (user.getBirthday() == null || user.getBirthday().isAfter(LocalDate.now())) {
+            log.error("Вы из будущего");
+            throw new ValidationException("Вы из будущего");
+        }
     }
 }
