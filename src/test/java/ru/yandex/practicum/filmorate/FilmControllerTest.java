@@ -4,6 +4,10 @@ import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.controller.FilmController;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.service.FilmService;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.InMemoryFilmStorage;
+import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
 
 import java.time.LocalDate;
 
@@ -12,15 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FilmControllerTest {
 
-    FilmController filmController = new FilmController();
+    FilmController filmController = new FilmController(new FilmService(new InMemoryFilmStorage(),
+            new UserService(new InMemoryUserStorage())));
 
-    Film film = Film.builder()
-            .id(1L)
-            .name("film")
-            .description("Film_description")
-            .releaseDate(LocalDate.of(2021, 12, 28))
-            .duration(130)
-            .build();
+    Film film = new Film(1L, "Film", "Film_description",
+            LocalDate.of(2021, 12, 28), 130);
 
     @Test
     public void testShouldGetFilms() {
@@ -31,20 +31,15 @@ class FilmControllerTest {
     @Test
     public void testShouldCreateFilm() {
         Film testFilm = filmController.createFilm(film);
-        assertEquals("film", film.getName());
+        assertEquals("Film", film.getName());
         assertEquals(1, filmController.getFilms().size());
     }
 
     @Test
     public void testShouldUpdateFilm() {
         Film testFilm = filmController.createFilm(film);
-        Film updFilm = Film.builder()
-                .id(1L)
-                .name("updFilm")
-                .description("updFilm_description")
-                .releaseDate(LocalDate.of(2021, 11, 28))
-                .duration(120)
-                .build();
+        Film updFilm = new Film(1L, "updFilm", "updFilm_description",
+                LocalDate.of(2021, 11, 28), 130);
         filmController.updateFilm(updFilm);
         assertEquals("updFilm", film.getName());
         assertEquals(1, filmController.getFilms().size());
