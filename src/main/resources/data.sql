@@ -1,12 +1,15 @@
-MERGE INTO genres(name) VALUES ('Комедия');
-MERGE INTO genres(name) VALUES ('Драма');
-MERGE INTO genres(name) VALUES ('Мультфильм');
-MERGE INTO genres(name) VALUES ('Триллер');
-MERGE INTO genres(name) VALUES ('Документальный');
-MERGE INTO genres(name) VALUES ('Боевик');
+DELETE FROM genres;
+DELETE FROM mpa;
 
-MERGE INTO mpa(name) VALUES ('G');
-MERGE INTO mpa(name) VALUES ('PG');
-MERGE INTO mpa(name) VALUES ('PG-13');
-MERGE INTO mpa(name) VALUES ('R');
-MERGE INTO mpa(name) VALUES ('NC-17');
+INSERT INTO genres(name) VALUES ('Комедия');
+INSERT INTO genres(name) VALUES ('Драма');
+INSERT INTO genres(name) VALUES ('Мультфильм');
+INSERT INTO genres(name) VALUES ('Триллер');
+INSERT INTO genres(name) VALUES ('Документальный');
+INSERT INTO genres(name) VALUES ('Боевик');
+
+INSERT INTO mpa(name) VALUES ('G');
+INSERT INTO mpa(name) VALUES ('PG');
+INSERT INTO mpa(name) VALUES ('PG-13');
+INSERT INTO mpa(name) VALUES ('R');
+INSERT INTO mpa(name) VALUES ('NC-17');

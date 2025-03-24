@@ -32,10 +32,10 @@ WHERE f.user_id = 1
 
 ### 6. Get common friends (id=1, id=5)
 SELECT u.id AS friend_id, u.name AS friend_name, u.login AS friend_login, u.email AS friend_email, u.birthday AS friend_birthday
-FROM users u
-JOIN friendship f1 ON u.id = f1.friend_id 
-JOIN friendship f2 ON u.id = f2.friend_id  
-WHERE f1.user_id = 1 AND f2.user_id = 5 AND f1.friend_id = f2.friend_id;
+FROM friendship f1
+JOIN friendship f2 ON f1.friend_id = f2.friend_id 
+JOIN users u ON f1.friend_id = u.id 
+WHERE f1.user_id = 1 AND f2.user_id = 5;
 
 ### 7. Get 10 most pupular films:
 SELECT f.id AS film_id, f.name AS film_name, COUNT(l.user_id) AS likes

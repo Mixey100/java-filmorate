@@ -14,4 +14,16 @@ public interface UserStorage {
     User createUser(User newUser);
 
     User updateUser(User updUser);
+
+    boolean deleteUser(Long id);
+
+    Collection<User> getFriends(Long id);
+
+    Collection<User> getCommonFriends(Long userId, Long friendId);
+
+    boolean addFriend(Long userId, Long friendId);
+
+    boolean removeFriend(Long userId, Long friendId);
+
+
 }

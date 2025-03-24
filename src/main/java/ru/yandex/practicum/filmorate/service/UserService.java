@@ -9,9 +9,7 @@ import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -45,85 +43,64 @@ public class UserService {
         if (updUser.getId() == null) {
             throw new ValidationException("Должен быть указан id пользователя");
         }
+        checkId(updUser.getId());
         check(updUser);
         User user = storage.updateUser(updUser);
         if (user != null) {
-            if (updUser.getName().isBlank()) {
-                user.setName(updUser.getLogin());
-            } else {
-                user.setName(updUser.getName());
-            }
             log.info("Успешное обновление пользователя {}", user.getName());
             return user;
+        } else {
+            throw new NotFoundException("Неудачная попытка обновления");
         }
-        throw new NotFoundException("Пользователь с id " + updUser.getId() + " не найден");
     }
 
-
-    public List<User> getFriends(long id) {
-        Optional<User> optUser = getUser(id);
-
-        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + id + " не найден"));
-
-        Set<Long> friendsId = user.getFriends();
-        return getUsers()
-                .stream()
-                .filter(currentUser -> friendsId.contains(currentUser.getId()))
-                .toList();
+    public User deleteUser(Long id) {
+        User user = checkId(id);
+        if (storage.deleteUser(id)) {
+            log.info("Успешное удаление пользователя {}", user.getName());
+            return user;
+        } else {
+            throw new NotFoundException("Неудачная попытка удаления пользователя");
+        }
     }
 
-    public List<User> getCommonFriends(long userId, long friendId) {
-        Optional<User> optUser = getUser(userId);
-        Optional<User> optFriend = getUser(friendId);
-
-        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
-        User friend = optFriend.orElseThrow(() -> new NotFoundException("Пользователь с id: " + friendId + " не найден"));
-
-        Set<Long> userFriendsId = user.getFriends();
-        Set<Long> friendFriendsId = friend.getFriends();
-        List<Long> commonId = userFriendsId
-                .stream()
-                .filter(friendFriendsId::contains)
-                .toList();
-
-        return getUsers()
-                .stream()
-                .filter(currentUser -> commonId.contains(currentUser.getId()))
-                .toList();
+    public Collection<User> getFriends(long id) {
+        checkId(id);
+        return storage.getFriends(id);
     }
 
-    public User addFriend(long userId, long friendId) {
+    public Collection<User> getCommonFriends(long userId, long friendId) {
+        checkId(userId);
+        checkId(friendId);
+        return storage.getCommonFriends(userId, friendId);
+    }
+
+    public void addFriend(long userId, long friendId) {
         if (userId == friendId) {
             log.error("Попытка добавить в друзья самого себя");
             throw new ValidationException("Попытка добавить в друзья самого себя");
         }
-        Optional<User> optUser = getUser(userId);
-        Optional<User> optFriend = getUser(friendId);
-
-        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
-        User friend = optFriend.orElseThrow(() -> new NotFoundException("Пользователь с id: " + friendId + " не найден"));
-
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
+        checkId(userId);
+        checkId(friendId);
+        storage.addFriend(userId, friendId);
         log.info("Пользователь с id: {} добавил в друзья пользователя с id: {}", userId, friendId);
-        return user;
     }
 
-    public User deleteFriend(long userId, long friendId) {
+    public void removeFriend(long userId, long friendId) {
         if (userId == friendId) {
             log.error("Попытка удалить из друзей самого себя");
             throw new ValidationException("Попытка удалить из друзей самого себя");
         }
-        Optional<User> optUser = getUser(userId);
-        Optional<User> optFriend = getUser(friendId);
-
-        User user = optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
-        User friend = optFriend.orElseThrow(() -> new NotFoundException("Пользователь с id: " + friendId + " не найден"));
-
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
+        checkId(userId);
+        checkId(friendId);
+        storage.removeFriend(userId, friendId);
         log.info("Пользователь с id: {} удалил из друзей пользователя с id: {}", userId, friendId);
-        return user;
+    }
+
+    User checkId(Long id) {
+        Optional<User> optUser = storage.getUser(id);
+        optUser.orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
+        return optUser.get();
     }
 
     private void check(User user) {
