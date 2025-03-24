@@ -20,7 +20,7 @@ public class Film {
     private String description;
     private LocalDate releaseDate;
     private Integer duration;
-    private Set<Long> likes = new HashSet<>();
     private Mpa mpa;
+    private Set<Long> likes = new HashSet<>();
     private List<Genre> genres = new ArrayList<>();
 }
