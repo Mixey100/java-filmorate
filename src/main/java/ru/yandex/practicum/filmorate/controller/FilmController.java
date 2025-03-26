@@ -6,7 +6,6 @@ import ru.yandex.practicum.filmorate.service.FilmService;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/films")
@@ -24,7 +23,7 @@ public class FilmController {
     }
 
     @GetMapping("/{id}")
-    public Optional<Film> getfilm(@PathVariable Long id) {
+    public Film getfilm(@PathVariable Long id) {
         return service.getFilm(id);
     }
 
@@ -39,8 +38,8 @@ public class FilmController {
     }
 
     @DeleteMapping("/{id}")
-    public Film deleteFilm(@PathVariable Long id) {
-        return service.deleteFilm(id);
+    public void deleteFilm(@PathVariable Long id) {
+        service.deleteFilm(id);
     }
 
     @PutMapping("/{id}/like/{userId}")

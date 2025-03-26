@@ -12,10 +12,8 @@ import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.mapper.FilmRowMapper;
 
 import java.sql.PreparedStatement;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -60,14 +58,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film createFilm(Film newFilm) {
-        if (!isMpaExists(newFilm.getMpa().getId())) {
-            throw new NotFoundException("Рейтинга MPA с id " + newFilm.getMpa().getId() + " не существует ");
-        }
-        for (Genre genre : newFilm.getGenres()) {
-            if (!isGenreExists(genre.getId())) {
-                throw new NotFoundException("Жанрв с id " + genre.getId() + " не существует");
-            }
-        }
+        validateFilmRelations(newFilm);
         String query = "INSERT INTO films(name, description, release_date, duration, mpa_id) VALUES (?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(connection -> {
@@ -90,6 +81,7 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public Film updateFilm(Film updFilm) {
+        validateFilmRelations(updFilm);
         String query = "Update films SET name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ? " +
                 "WHERE id = ?";
         int rows = jdbc.update(query,
@@ -154,21 +146,18 @@ public class FilmDbStorage implements FilmStorage {
         Film film = getFilm(filmId).orElseThrow();
         film.getLikes().remove(userId);
         return count > 0;
-
     }
 
     private void addFilmGenres(Film film) {
-        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            String checkQuery = "SELECT COUNT(*) FROM film_genres WHERE film_id = ? AND genre_id = ?";
-            String insertQuery = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
-
-            for (Genre genre : film.getGenres()) {
-                Integer count = jdbc.queryForObject(checkQuery, Integer.class, film.getId(), genre.getId());
-                if (count == null || count == 0) {
-                    jdbc.update(insertQuery, film.getId(), genre.getId());
-                }
-            }
+        if (film.getGenres() == null || film.getGenres().isEmpty()) {
+            return;
         }
+        String mergeQuery = "MERGE INTO film_genres (film_id, genre_id) " +
+                "KEY (film_id, genre_id) VALUES (?, ?)";
+        jdbc.batchUpdate(mergeQuery, film.getGenres(), film.getGenres().size(), (ps, genre) -> {
+            ps.setLong(1, film.getId());
+            ps.setLong(2, genre.getId());
+        });
     }
 
     private void deleteFilmGenres(Film film) {
@@ -176,16 +165,22 @@ public class FilmDbStorage implements FilmStorage {
         jdbc.update(delQuery, film.getId());
     }
 
-    private boolean isMpaExists(int mpaId) {
-        String query = "SELECT COUNT(*) FROM mpa WHERE id = ?";
-        Integer count = jdbc.queryForObject(query, Integer.class, mpaId);
-        return count != null && count > 0;
+    private void validateFilmRelations(Film film) {
+        // Проверка MPA
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM mpa WHERE id = ?", Integer.class, film.getMpa().getId()) == 0) {
+            throw new NotFoundException("Рейтинг MPA с id " + film.getMpa().getId() + " не существует");
+        }
+        // Проверка жанров (если есть)
+        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
+            Set<Integer> genreIds = film.getGenres().stream()
+                    .map(Genre::getId)
+                    .collect(Collectors.toSet());
+            int foundGenres = jdbc.queryForObject("SELECT COUNT(*) FROM genres WHERE id IN (" +
+                            genreIds.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")",
+                    Integer.class);
+            if (foundGenres != genreIds.size()) {
+                throw new NotFoundException("Один или несколько жанров не существуют");
+            }
+        }
     }
-
-    private boolean isGenreExists(int genreId) {
-        String query = "SELECT COUNT(*) FROM genres WHERE id = ?";
-        Integer count = jdbc.queryForObject(query, Integer.class, genreId);
-        return count != null && count > 0;
-    }
-
 }

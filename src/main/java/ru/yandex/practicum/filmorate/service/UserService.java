@@ -9,7 +9,6 @@ import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -25,8 +24,8 @@ public class UserService {
         return storage.getUsers();
     }
 
-    public Optional<User> getUser(long id) {
-        return storage.getUser(id);
+    public User getUser(long id) {
+        return storage.getUser(id).orElseThrow();
     }
 
     public User createUser(User newUser) {
@@ -54,14 +53,10 @@ public class UserService {
         }
     }
 
-    public User deleteUser(Long id) {
+    public void deleteUser(Long id) {
         User user = checkId(id);
-        if (storage.deleteUser(id)) {
-            log.info("Успешное удаление пользователя {}", user.getName());
-            return user;
-        } else {
-            throw new NotFoundException("Неудачная попытка удаления пользователя");
-        }
+        storage.deleteUser(id);
+        log.info("Пользователь {} удален", user.getName());
     }
 
     public Collection<User> getFriends(long id) {
@@ -98,9 +93,7 @@ public class UserService {
     }
 
     User checkId(Long id) {
-        Optional<User> optUser = storage.getUser(id);
-        optUser.orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
-        return optUser.get();
+        return storage.getUser(id).orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
     }
 
     private void check(User user) {
