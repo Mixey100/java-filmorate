@@ -5,14 +5,11 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
 
 import java.time.LocalDate;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -30,21 +27,18 @@ public class FilmService {
         return storage.getFilms();
     }
 
-    public Optional<Film> getFilm(long id) {
-        return storage.getFilm(id);
+    public Film getFilm(Long id) {
+        return storage.getFilm(id).orElseThrow();
     }
 
     public Film createFilm(Film newFilm) {
         check(newFilm);
-        storage.createFilm(newFilm);
-        log.info("Фильм {} добавлен", newFilm.getName());
-        return newFilm;
+        Film film = storage.createFilm(newFilm);
+        log.info("Фильм {} успешно создан", newFilm.getName());
+        return film;
     }
 
     public Film updateFilm(Film updFilm) {
-        if (updFilm.getId() == null) {
-            throw new ValidationException("Должен быть указан id фильма");
-        }
         check(updFilm);
         Film film = storage.updateFilm(updFilm);
         if (film != null) {
@@ -54,39 +48,35 @@ public class FilmService {
         throw new NotFoundException("Фильм с id " + updFilm.getId() + " не найден");
     }
 
-    public List<Film> getPopularFilms(long count) {
-        Comparator<Film> comparator = Comparator.comparingInt(film -> film.getLikes().size());
-        return getFilms()
-                .stream()
-                .sorted(comparator.reversed())
-                .limit(count)
-                .toList();
+    public void deleteFilm(Long id) {
+        Film film = checkId(id);
+        storage.deleteFilm(id);
+        log.info("Фильм {} удален", film.getName());
     }
 
-    public Film addLike(long filmId, long userId) {
-        Optional<Film> optFilm = getFilm(filmId);
-        Optional<User> optUser = service.getUser(userId);
-
-        optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
-
-        Film film = optFilm.orElseThrow(() -> new NotFoundException("Фильм с id: " + filmId + " не найден"));
-
-        film.getLikes().add(userId);
-        log.info("Пользователь с id: {} поставил лайк фильму с id: {}", userId, filmId);
-        return film;
+    public List<Film> getPopularFilms(int count) {
+        return storage.getPopularFilms(count);
     }
 
-    public Film deleteLike(long filmId, long userId) {
-        Optional<Film> optFilm = getFilm(filmId);
-        Optional<User> optUser = service.getUser(userId);
+    public void addLike(Long filmId, Long userId) {
+        checkId(filmId);
+        service.checkId(userId);
+        if (storage.addLike(filmId, userId)) {
+            log.info("Пользователь с id: {} поставил лайк фильму с id: {}", userId, filmId);
+        } else {
+            throw new ValidationException("Лайк фильму c id " + filmId + " пользователем " + userId + " уже имеется");
+        }
+    }
 
-        optUser.orElseThrow(() -> new NotFoundException("Пользователь с id: " + userId + " не найден"));
-
-        Film film = optFilm.orElseThrow(() -> new NotFoundException("Фильм с id: " + filmId + " не найден"));
-
-        film.getLikes().remove(userId);
+    public void deleteLike(long filmId, long userId) {
+        checkId(filmId);
+        service.checkId(userId);
+        storage.addLike(filmId, userId);
         log.info("Пользователь с id: {} удалил лайк у фильма с id: {}", userId, filmId);
-        return film;
+    }
+
+    private Film checkId(Long id) {
+        return storage.getFilm(id).orElseThrow(() -> new NotFoundException("Фильм с id " + id + " не найден"));
     }
 
     private void check(Film film) {
@@ -105,6 +95,9 @@ public class FilmService {
         if (film.getDuration() == null || film.getDuration() < 0) {
             log.error("Продолжительность фильма - отрицательное число");
             throw new ValidationException("Продолжительность фильма должна быть положительным числом");
+        }
+        if (film.getMpa() == null || film.getMpa().getId() == null) {
+            throw new ValidationException("Должен быть указан рейтинг Мра");
         }
     }
 }
